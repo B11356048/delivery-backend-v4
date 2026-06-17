@@ -393,6 +393,104 @@ app.put("/api/profile", async(req,res)=>{
 });
 
 /* =====================
+   店家商品管理
+===================== */
+
+// 修改商品
+
+app.put("/api/foods/:id", async(req,res)=>{
+
+    try{
+
+        const food =
+        await Food.findByIdAndUpdate(
+
+            req.params.id,
+
+            req.body,
+
+            {
+                new:true
+            }
+
+        );
+
+        if(!food){
+
+            return res.status(404).json({
+
+                success:false,
+
+                message:"找不到商品"
+
+            });
+
+        }
+
+        res.json({
+
+            success:true,
+
+            data:food,
+
+            message:"商品更新成功"
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+
+// 查看店家自己的商品
+
+app.get("/api/foods/store/:storeId", async(req,res)=>{
+
+    try{
+
+        const foods =
+        await Food.find({
+
+            storeId:
+            req.params.storeId
+
+        });
+
+        res.json({
+
+            success:true,
+
+            data:foods
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+/* =====================
    訂單
 ===================== */
 
