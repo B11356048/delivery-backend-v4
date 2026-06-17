@@ -772,6 +772,83 @@ async(req,res)=>{
 });
 
 /* =====================
+   騎手接單
+===================== */
+
+app.put(
+"/api/orders/:id/assign-rider",
+async(req,res)=>{
+
+    try{
+
+        const {
+
+            riderId,
+            riderName
+
+        } = req.body;
+
+        const order =
+        await Order.findByIdAndUpdate(
+
+            req.params.id,
+
+            {
+
+                riderId,
+
+                riderName,
+
+                status:"騎手配送中"
+
+            },
+
+            {
+
+                new:true
+
+            }
+
+        );
+
+        if(!order){
+
+            return res.status(404).json({
+
+                success:false,
+
+                message:"找不到訂單"
+
+            });
+
+        }
+
+        res.json({
+
+            success:true,
+
+            data:order,
+
+            message:"接單成功"
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+/* =====================
    店家接單
 ===================== */
 
