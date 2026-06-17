@@ -1,12 +1,14 @@
 {
-  "name": "delivery-admin-system",
-  "version": "1.0.0",
-  "description": "外送平台後台管理系統",
+  "name": "fastfood-master-server",
+  "version": "3.2.0",
+  "description": "速食達人四端動態外送管理平台後端-資料庫版",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "mongoose": "^8.4.3"
   }
 }
