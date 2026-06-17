@@ -1,56 +1,101 @@
 const express = require('express');
+const cors = require('cors');
 const path = require('path');
+const mongoose = require('mongoose'); // 引入資料庫套件
 const app = express();
-// Render 會自動分配 PORT，若沒有則預設 3000
+
 const PORT = process.env.PORT || 3000;
 
+// 填入你的 MongoDB 連接字串，如果是在 Render 部署，建議設定在環境變數中
+const MONGODB_URI = process.env.MONGODB_URI || "你的_MONGODB_雲端連接字串";
+
+app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 模擬資料庫假資料
-let stores = [
-    { id: 1, name: '好媽媽排骨飯', category: '便當快餐', status: '營業中' },
-    { id: 2, name: '大呼過癮火鍋', category: '鍋物', status: '休息中' }
-];
+// === 1. 連接 MongoDB 資料庫 ===
+mongoose.connect(MONGODB_URI)
+    .then(() => console.log('🎉 成功連接到 MongoDB 雲端資料庫！'))
+    .catch(err => console.error('❌ 資料庫連接失敗:', err));
 
-let drivers = [
-    { id: 1, name: '張小明', phone: '0912-345678', status: '待審核' },
-    { id: 2, name: '李大華', phone: '0923-456789', status: '已開通' }
-];
+// === 2. 定義資料模型 (Schemas) —— 完美對應你 HTML 的資料欄位 ===
+const FoodSchema = new mongoose.Schema({
+    storeName: String,
+    foodName: String,
+    price: Number,
+    desc: String
+});
+const Food = mongoose.model('Food', FoodSchema);
 
-let orders = [
-    { id: 'ORD001', store: '好媽媽排骨飯', amount: 250, status: '外送中' },
-    { id: 'ORD002', store: '大呼過癮火鍋', amount: 480, status: '已完成' }
-];
+const OrderSchema = new mongoose.Schema({
+    id: Number,
+    store: String,
+    items: String,
+    price: Number,
+    status: { type: String, default: '待接單' },
+    address: String
+});
+const Order = mongoose.model('Order', OrderSchema);
 
-// --- API 路由管理 ---
 
-// 1. 店家 API
-app.get('/api/stores', (req, res) => res.json(stores));
-app.post('/api/stores', (req, res) => {
-    const newStore = { id: stores.length + 1, ...req.body, status: '營業中' };
-    stores.push(newStore);
-    res.json({ success: true, data: stores });
+// === 3. API 路由管理（資料改從資料庫讀寫） ===
+
+// 註冊驗證（保持簡單驗證）
+app.post('/api/register', (req, res) => {
+    res.json({ success: true, message: '註冊驗證通過！' });
 });
 
-// 2. 外送員 API
-app.get('/api/drivers', (req, res) => res.json(drivers));
-app.post('/api/drivers/verify', (req, res) => {
-    const { id, status } = req.body;
-    drivers = drivers.map(d => d.id === id ? { ...d, status } : d);
-    res.json({ success: true, data: drivers });
+// 商家上架餐點：存入資料庫
+app.post('/api/foods', async (req, res) => {
+    try {
+        const newFood = new Food(req.body);
+        await newFood.save();
+        const allFoods = await Food.find(); // 重新抓取所有餐點回傳
+        res.json({ success: true, data: allFoods });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 });
 
-// 3. 訂單 API
-app.get('/api/orders', (req, res) => res.json(orders));
-
-// 4. 營收統計 API
-app.get('/api/revenue', (req, res) => {
-    const total = orders.reduce((sum, o) => sum + o.amount, 0);
-    res.json({ totalRevenue: total, orderCount: orders.length });
+// 獲取所有餐點
+app.get('/api/foods', async (req, res) => {
+    const allFoods = await Food.find();
+    res.json(allFoods);
 });
 
-// 啟動伺服器
+// 消費者送出訂單：存入資料庫
+app.post('/api/orders', async (req, res) => {
+    try {
+        const newOrder = new Order({
+            id: req.body.id || Date.now(),
+            ...req.body
+        });
+        await newOrder.save();
+        const allOrders = await Order.find();
+        res.json({ success: true, data: allOrders });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 獲取所有訂單
+app.get('/api/orders', async (req, res) => {
+    const allOrders = await Order.find();
+    res.json(allOrders);
+});
+
+// 更新訂單狀態（接單、派送等）
+app.post('/api/orders/update-status', async (req, res) => {
+    try {
+        const { id, status } = req.body;
+        await Order.updateOne({ id: Number(id) }, { status });
+        const allOrders = await Order.find();
+        res.json({ success: true, data: allOrders });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`伺服器成功架設在 Port: ${PORT}`);
 });
