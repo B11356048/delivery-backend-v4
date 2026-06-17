@@ -554,6 +554,10 @@ app.post("/api/orders", async(req,res)=>{
         const order =
         new Order({
 
+            orderNumber:
+            "OD" +
+            Date.now(),
+
             ...req.body,
 
             deliveryCode:code
