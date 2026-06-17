@@ -1,1168 +1,230 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const bcrypt = require("bcrypt");
-require("dotenv").config();
-
-const User = require("./models/User");
-const Food = require("./models/Food");
-const Order = require("./models/Order");
-const Cart = require("./models/Cart");
-const Review = require("./models/Review");
 
 const app = express();
-
-app.use((req,res,next)=>{
-
-    res.header(
-        "Access-Control-Allow-Origin",
-        "*"
-    );
-
-    res.header(
-        "Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-    );
-
-    res.header(
-        "Access-Control-Allow-Methods",
-        "GET,POST,PUT,DELETE,OPTIONS"
-    );
-
-    if(req.method === "OPTIONS"){
-        return res.sendStatus(200);
-    }
-
-    next();
-
-});
-
 app.use(express.json());
+app.use(cors());
 
-mongoose.connect(process.env.MONGO_URI)
-.then(()=>{
-    console.log("MongoDB Connected");
-})
-.catch(err=>{
-    console.log(err);
-});
+// ==========================================
+// 1. DATABASE MODELS (資料庫模型)
+// ==========================================
 
-/* =====================
-   註冊
-===================== */
-app.post("/api/register", async(req,res)=>{
+// 使用者模型
+const userSchema = new mongoose.Schema({
+    role: { type: String, enum: ["customer", "merchant", "rider", "admin"], required: true },
+    username: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    email: { type: String, default: "" },
+    name: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    address: { type: String, default: "" },
+    avatar: { type: String, default: "" },
+    status: { type: String, default: "active" },
+    storeName: { type: String, default: "" },
+    taxId: { type: String, default: "" },
+    businessProofImg: { type: String, default: "" },
+    licenseType: { type: String, default: "" },
+    licenseNumber: { type: String, default: "" },
+    insuranceImg: { type: String, default: "" },
+    totalOrders: { type: Number, default: 0 },
+    totalSpent: { type: Number, default: 0 },
+    totalIncome: { type: Number, default: 0 }
+}, { timestamps: true });
+const User = mongoose.model("User", userSchema);
 
-    try{
+// 商品模型
+const foodSchema = new mongoose.Schema({
+    storeId: { type: String, default: "" },
+    storeName: { type: String, default: "" },
+    name: { type: String, required: true },
+    category: { type: String, default: "其他" },
+    desc: { type: String, default: "" },
+    image: { type: String, default: "" },
+    price: { type: Number, required: true },
+    stock: { type: Number, default: 50 },
+    isAvailable: { type: Boolean, default: true },
+    salesCount: { type: Number, default: 0 },
+    ratingSum: { type: Number, default: 5 },
+    ratingCount: { type: Number, default: 1 }
+}, { timestamps: true });
+const Food = mongoose.model("Food", foodSchema);
 
-        const {
-            username,
-            password
-        } = req.body;
+// 購物車模型 (修正補丁：加入 storeId 與 storeName)
+const cartSchema = new mongoose.Schema({
+    userId: { type: String, required: true },
+    items: [{
+        foodId: String,
+        name: String,
+        price: Number,
+        qty: Number,
+        image: String,
+        storeId: String,
+        storeName: String
+    }],
+    totalAmount: { type: Number, default: 0 }
+}, { timestamps: true });
+const Cart = mongoose.model("Cart", cartSchema);
 
-        const exists =
-        await User.findOne({
-            username
-        });
+// 訂單模型
+const orderSchema = new mongoose.Schema({
+    orderNumber: { type: String, default: "" },
+    memberId: { type: String, default: "" },
+    memberEmail: { type: String, default: "" },
+    memberName: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    address: { type: String, default: "" },
+    merchantId: { type: String, default: "" },
+    storeName: { type: String, default: "" },
+    riderId: { type: String, default: "" },
+    riderName: { type: String, default: "" },
+    items: [{ foodId: String, name: String, price: Number, qty: Number }],
+    remark: { type: String, default: "" },
+    totalAmount: { type: Number, default: 0 },
+    paymentMethod: { type: String, enum: ["cash", "online"], default: "cash" },
+    paymentStatus: { type: String, enum: ["unpaid", "paid"], default: "unpaid" },
+    deliveryCode: { type: String, default: "" },
+    reviewed: { type: Boolean, default: false },
+    status: { type: String, enum: ["待店家接單", "店家製作中", "待騎手接單", "騎手配送中", "已送達", "已完成", "已取消"], default: "待店家接單" }
+}, { timestamps: true });
+const Order = mongoose.model("Order", orderSchema);
 
-        if(exists){
+// 評論模型
+const reviewSchema = new mongoose.Schema({
+    foodId: { type: String, required: true },
+    userId: { type: String, required: true },
+    userName: { type: String, default: "" },
+    stars: { type: Number, min: 1, max: 5, required: true },
+    comment: { type: String, default: "" }
+}, { timestamps: true });
+const Review = mongoose.model("Review", reviewSchema);
 
-            return res.status(400).json({
-                success:false,
-                message:"帳號已存在"
-            });
 
-        }
+// ==========================================
+// 2. API ROUTES (介面路由)
+// ==========================================
 
-        const hash =
-        await bcrypt.hash(
-            password,
-            10
-        );
-
-        const user =
-        new User({
-            ...req.body,
-            password:hash
-        });
-
+// 註冊與登入
+app.post("/api/register", async (req, res) => {
+    try {
+        const user = new User(req.body);
         await user.save();
-
-        res.json({
-            success:true,
-            message:"註冊成功"
-        });
-
+        res.json({ success: true, message: "註冊成功！" });
+    } catch (err) {
+        res.json({ success: false, message: err.message });
     }
-    catch(err){
-
-        res.status(500).json({
-            success:false,
-            message:err.message
-        });
-
-    }
-
 });
 
-/* =====================
-   登入
-===================== */
-app.post("/api/login", async(req,res)=>{
+app.post("/api/login", async (req, res) => {
+    const { username, password } = req.body;
+    const user = await User.findOne({ username, password });
+    if (user) {
+        res.json({ success: true, user });
+    } else {
+        res.json({ success: false, message: "帳號或密碼錯誤" });
+    }
+});
 
-    try{
+// 商品管理
+app.post("/api/foods", async (req, res) => {
+    const food = new Food(req.body);
+    await food.save();
+    res.json({ success: true, data: food });
+});
 
-        const {
-            username,
-            password
-        } = req.body;
+app.get("/api/foods", async (req, res) => {
+    const data = await Food.find({ isAvailable: true });
+    res.json({ success: true, data });
+});
 
-        const user =
-        await User.findOne({
-            username
-        });
+app.get("/api/foods/store/:storeId", async (req, res) => {
+    const data = await Food.find({ storeId: req.params.storeId });
+    res.json({ success: true, data });
+});
 
-        if(!user){
-
-            return res.status(401).json({
-                success:false,
-                message:"帳號不存在"
-            });
-
+// 訂單管理
+app.post("/api/orders", async (req, res) => {
+    try {
+        const orderData = req.body;
+        orderData.orderNumber = "ORD" + Date.now();
+        if (orderData.paymentMethod === "online") {
+            orderData.deliveryCode = Math.floor(1000 + Math.random() * 9000).toString();
+            orderData.paymentStatus = "paid";
         }
-
-        const match =
-        await bcrypt.compare(
-            password,
-            user.password
-        );
-
-        if(!match){
-
-            return res.status(401).json({
-                success:false,
-                message:"密碼錯誤"
-            });
-
-        }
-
-        res.json({
-            success:true,
-            user
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-            success:false,
-            message:err.message
-        });
-
-    }
-
-});
-
-/* =====================
-   購物車
-===================== */
-
-// 建立或更新購物車
-
-app.post("/api/cart", async(req,res)=>{
-
-    try{
-
-        const {
-
-            userId,
-            items,
-            totalAmount
-
-        } = req.body;
-
-        let cart =
-        await Cart.findOne({
-            userId
-        });
-
-        if(cart){
-
-            cart.items =
-            items;
-
-            cart.totalAmount =
-            totalAmount;
-
-            await cart.save();
-
-        }
-        else{
-
-            cart =
-            new Cart({
-
-                userId,
-
-                items,
-
-                totalAmount
-
-            });
-
-            await cart.save();
-
-        }
-
-        res.json({
-
-            success:true,
-
-            data:cart
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
-});
-
-
-// 取得購物車
-
-app.get("/api/cart/:userId", async(req,res)=>{
-
-    try{
-
-        const cart =
-        await Cart.findOne({
-
-            userId:
-            req.params.userId
-
-        });
-
-        res.json({
-
-            success:true,
-
-            data:cart
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
-});
-
-
-// 清空購物車
-
-app.delete("/api/cart/:userId", async(req,res)=>{
-
-    try{
-
-        await Cart.findOneAndDelete({
-
-            userId:
-            req.params.userId
-
-        });
-
-        res.json({
-
-            success:true,
-
-            message:"購物車已清空"
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
-});
-
-/* =====================
-   商品
-===================== */
-
-app.get("/api/foods", async(req,res)=>{
-
-    const foods =
-    await Food.find();
-
-    res.json({
-        success:true,
-        data:foods
-    });
-
-});
-
-app.post("/api/foods", async(req,res)=>{
-
-    try{
-
-        const food =
-        new Food(req.body);
-
-        await food.save();
-
-        res.json({
-            success:true,
-            data:food
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-            success:false,
-            message:err.message
-        });
-
-    }
-
-});
-
-/* =====================
-   修改個人資料
-===================== */
-
-app.put("/api/profile", async(req,res)=>{
-
-    try{
-
-        const {
-            userId,
-            name,
-            phone,
-            address,
-            email,
-            avatar
-        } = req.body;
-
-        const user =
-        await User.findByIdAndUpdate(
-
-            userId,
-
-            {
-                name,
-                phone,
-                address,
-                email,
-                avatar
-            },
-
-            {
-                new:true
-            }
-
-        );
-
-        if(!user){
-
-            return res.status(404).json({
-                success:false,
-                message:"找不到使用者"
-            });
-
-        }
-
-        res.json({
-            success:true,
-            data:user,
-            message:"個人資料更新成功"
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-            success:false,
-            message:err.message
-        });
-
-    }
-
-});
-
-/* =====================
-   店家商品管理
-===================== */
-
-// 修改商品
-
-app.put("/api/foods/:id", async(req,res)=>{
-
-    try{
-
-        const food =
-        await Food.findByIdAndUpdate(
-
-            req.params.id,
-
-            req.body,
-
-            {
-                new:true
-            }
-
-        );
-
-        if(!food){
-
-            return res.status(404).json({
-
-                success:false,
-
-                message:"找不到商品"
-
-            });
-
-        }
-
-        res.json({
-
-            success:true,
-
-            data:food,
-
-            message:"商品更新成功"
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
-});
-
-
-// 查看店家自己的商品
-
-app.get("/api/foods/store/:storeId", async(req,res)=>{
-
-    try{
-
-        const foods =
-        await Food.find({
-
-            storeId:
-            req.params.storeId
-
-        });
-
-        res.json({
-
-            success:true,
-
-            data:foods
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
-});
-
-/* =====================
-   訂單
-===================== */
-
-app.post("/api/orders", async(req,res)=>{
-
-    try{
-
-        const {
-            items,
-            paymentMethod
-        } = req.body;
-
-        for(const item of items){
-
-            const food =
-            await Food.findById(
-                item.foodId
-            );
-
-            if(
-                !food ||
-                food.stock < item.qty
-            ){
-
-                return res.status(400).json({
-                    success:false,
-                    message:`${item.name} 庫存不足`
-                });
-
-            }
-
-        }
-
-        for(const item of items){
-
-            await Food.findByIdAndUpdate(
-                item.foodId,
-                {
-                    $inc:{
-                        stock:-item.qty
-                    }
-                }
-            );
-
-        }
-
-        let code = null;
-
-        if(
-            paymentMethod === "online"
-        ){
-
-            code =
-            Math.floor(
-                1000 +
-                Math.random()*9000
-            ).toString();
-
-        }
-
-        const order =
-        new Order({
-
-            orderNumber:
-            "OD" +
-            Date.now(),
-
-            ...req.body,
-
-            deliveryCode:code
-
-        });
-
+        const order = new Order(orderData);
         await order.save();
-
-        res.json({
-            success:true,
-            data:order
-        });
-
+        res.json({ success: true, data: order });
+    } catch (err) {
+        res.json({ success: false, message: err.message });
     }
-    catch(err){
-
-        res.status(500).json({
-            success:false,
-            message:err.message
-        });
-
-    }
-
 });
 
-app.get("/api/orders", async(req,res)=>{
-
-    const orders =
-    await Order.find()
-    .sort({
-        createdAt:-1
-    });
-
-    res.json({
-        success:true,
-        data:orders
-    });
-
+app.get("/api/orders/user/:userId", async (req, res) => {
+    const data = await Order.find({ memberId: req.params.userId }).sort({ createdAt: -1 });
+    res.json({ success: true, data });
 });
 
-/* =====================
-   訂單查詢
-===================== */
-
-// 會員查詢自己的訂單
-
-app.get(
-"/api/orders/user/:memberId",
-async(req,res)=>{
-
-    try{
-
-        const orders =
-        await Order.find({
-
-            memberId:
-            req.params.memberId
-
-        })
-        .sort({
-            createdAt:-1
-        });
-
-        res.json({
-
-            success:true,
-
-            data:orders
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
+app.get("/api/orders/store/:merchantId", async (req, res) => {
+    const data = await Order.find({ merchantId: req.params.merchantId }).sort({ createdAt: -1 });
+    res.json({ success: true, data });
 });
 
-
-// 店家查詢自己的訂單
-
-app.get(
-"/api/orders/store/:merchantId",
-async(req,res)=>{
-
-    try{
-
-        const orders =
-        await Order.find({
-
-            merchantId:
-            req.params.merchantId
-
-        })
-        .sort({
-            createdAt:-1
-        });
-
-        res.json({
-
-            success:true,
-
-            data:orders
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
+// 店家接單
+app.put("/api/orders/:id/accept", async (req, res) => {
+    await Order.findByIdAndUpdate(req.params.id, { status: "店家製作中" });
+    setTimeout(async () => {
+        await Order.findByIdAndUpdate(req.params.id, { status: "待騎手接單" });
+    }, 5000); // 模擬5秒後製作完成轉交大廳
+    res.json({ success: true, message: "店家已接單，正在餐點製作中！" });
 });
 
-
-// 騎手查詢自己的訂單
-
-app.get(
-"/api/orders/rider/:riderId",
-async(req,res)=>{
-
-    try{
-
-        const orders =
-        await Order.find({
-
-            riderId:
-            req.params.riderId
-
-        })
-        .sort({
-            createdAt:-1
-        });
-
-        res.json({
-
-            success:true,
-
-            data:orders
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
+// 騎手大廳與配送
+app.get("/api/orders/available", async (req, res) => {
+    const data = await Order.find({ status: "待騎手接單" });
+    res.json({ success: true, data });
 });
 
-/* =====================
-   待騎手接單
-===================== */
-
-app.get(
-"/api/orders/available",
-async(req,res)=>{
-
-    try{
-
-        const orders =
-        await Order.find({
-
-            status:"待騎手接單"
-
-        })
-        .sort({
-
-            createdAt:-1
-
-        });
-
-        res.json({
-
-            success:true,
-
-            data:orders
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
+app.put("/api/orders/:id/assign-rider", async (req, res) => {
+    const { riderId, riderName } = req.body;
+    await Order.findByIdAndUpdate(req.params.id, { riderId, riderName, status: "騎手配送中" });
+    res.json({ success: true, message: "搶單成功！請前往店家取餐配送。" });
 });
 
-/* =====================
-   騎手接單
-===================== */
-
-app.put(
-"/api/orders/:id/assign-rider",
-async(req,res)=>{
-
-    try{
-
-        const {
-
-            riderId,
-            riderName
-
-        } = req.body;
-
-        const order =
-        await Order.findByIdAndUpdate(
-
-            req.params.id,
-
-            {
-
-                riderId,
-
-                riderName,
-
-                status:"騎手配送中"
-
-            },
-
-            {
-
-                new:true
-
-            }
-
-        );
-
-        if(!order){
-
-            return res.status(404).json({
-
-                success:false,
-
-                message:"找不到訂單"
-
-            });
-
-        }
-
-        res.json({
-
-            success:true,
-
-            data:order,
-
-            message:"接單成功"
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
+app.get("/api/orders/rider/:riderId", async (req, res) => {
+    const data = await Order.find({ riderId: req.params.riderId, status: "騎手配送中" });
+    res.json({ success: true, data });
 });
 
-/* =====================
-   店家接單
-===================== */
-
-app.put(
-"/api/orders/:id/accept",
-async(req,res)=>{
-
-    const order =
-    await Order.findByIdAndUpdate(
-
-        req.params.id,
-
-        {
-            status:"待騎手接單"
-        },
-
-        {
-            new:true
-        }
-
-    );
-
-    res.json({
-        success:true,
-        data:order
-    });
-
-});
-
-/* =====================
-   騎手取餐
-===================== */
-
-app.put(
-"/api/orders/:id/pickup",
-async(req,res)=>{
-
-    const order =
-    await Order.findByIdAndUpdate(
-
-        req.params.id,
-
-        {
-            status:"騎手配送中"
-        },
-
-        {
-            new:true
-        }
-
-    );
-
-    res.json({
-        success:true,
-        data:order
-    });
-
-});
-
-/* =====================
-   完成訂單
-===================== */
-
-app.put(
-"/api/orders/:id/complete",
-async(req,res)=>{
-
-    const {
-        inputCode
-    } = req.body;
-
-    const order =
-    await Order.findById(
-        req.params.id
-    );
-
-    if(!order){
-
-        return res.status(404).json({
-            success:false
-        });
-
+app.put("/api/orders/:id/complete", async (req, res) => {
+    const { inputCode } = req.body;
+    const order = await Order.findById(req.params.id);
+    
+    if (order.paymentMethod === "online" && order.deliveryCode !== inputCode) {
+        return res.json({ success: false, message: "外送驗證碼錯誤，無法結案！" });
     }
-
-    if(
-        order.paymentMethod==="online"
-    ){
-
-        if(
-            inputCode !==
-            order.deliveryCode
-        ){
-
-            return res.status(400).json({
-                success:false,
-                message:"驗證碼錯誤"
-            });
-
-        }
-
-    }
-
-    order.status="已送達";
-
+    
+    order.status = "已送達";
     await order.save();
-
-    res.json({
-        success:true,
-        data:order
-    });
-
+    res.json({ success: true, message: "訂單送達完成！" });
 });
 
-
-/* =====================
-   評論
-===================== */
-
-app.post(
-"/api/orders/:id/review",
-async(req,res)=>{
-
-    try{
-
-        const {
-
-            userId,
-            userName,
-            stars,
-            comment
-
-        } = req.body;
-
-        const order =
-        await Order.findById(
-            req.params.id
-        );
-
-        if(!order){
-
-            return res.status(404).json({
-
-                success:false,
-
-                message:"找不到訂單"
-
-            });
-
-        }
-
-        if(order.reviewed){
-
-            return res.status(400).json({
-
-                success:false,
-
-                message:"此訂單已評論"
-
-            });
-
-        }
-
-        for(const item of order.items){
-
-            // 更新餐點星數
-
-            await Food.findByIdAndUpdate(
-
-                item.foodId,
-
-                {
-                    $inc:{
-
-                        ratingSum:stars,
-
-                        ratingCount:1
-
-                    }
-
-                }
-
-            );
-
-            // 新增評論
-
-            const review =
-            new Review({
-
-                foodId:item.foodId,
-
-                userId,
-
-                userName,
-
-                stars,
-
-                comment
-
-            });
-
-            await review.save();
-
-        }
-
-        order.reviewed = true;
-
-        order.status = "已完成";
-
-        await order.save();
-
-        res.json({
-
-            success:true,
-
-            message:"感謝您的評價"
-
-        });
-
+// 評價系統
+app.post("/api/orders/:id/review", async (req, res) => {
+    const { userId, userName, stars, comment } = req.body;
+    const order = await Order.findById(req.params.id);
+    
+    for (let item of order.items) {
+        const rev = new Review({ foodId: item.foodId, userId, userName, stars, comment });
+        await rev.save();
+        await Food.findByIdAndUpdate(item.foodId, { $inc: { ratingSum: stars, ratingCount: 1 } });
     }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
+    
+    order.reviewed = true;
+    await order.save();
+    res.json({ success: true, message: "感謝您的評價！" });
 });
 
-/* =====================
-   查詢評論
-===================== */
-
-app.get(
-"/api/reviews/:foodId",
-async(req,res)=>{
-
-    try{
-
-        const reviews =
-        await Review.find({
-
-            foodId:
-            req.params.foodId
-
-        })
-        .sort({
-
-            createdAt:-1
-
-        });
-
-        res.json({
-
-            success:true,
-
-            data:reviews
-
-        });
-
-    }
-    catch(err){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:err.message
-
-        });
-
-    }
-
-});
-/* =====================
-   啟動伺服器
-===================== */
-console.log("=== Before Listen ===");
-const PORT = process.env.PORT || 10000;
-
-app.listen(PORT,()=>{
-
-    console.log(`Server Running ${PORT}`);
-
-});
+// 連接 MongoDB 並啟動
+mongoose.connect("你的MongoDB連線字串_如果趕時間也可以用本地mongodb://localhost:27017/delivery")
+    .then(() => app.listen(process.env.PORT || 3000, () => console.log("伺服器運行中...")))
+    .catch(err => console.log(err));
