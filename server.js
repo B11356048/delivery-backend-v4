@@ -595,6 +595,138 @@ app.get("/api/orders", async(req,res)=>{
 });
 
 /* =====================
+   訂單查詢
+===================== */
+
+// 會員查詢自己的訂單
+
+app.get(
+"/api/orders/user/:memberId",
+async(req,res)=>{
+
+    try{
+
+        const orders =
+        await Order.find({
+
+            memberId:
+            req.params.memberId
+
+        })
+        .sort({
+            createdAt:-1
+        });
+
+        res.json({
+
+            success:true,
+
+            data:orders
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+
+// 店家查詢自己的訂單
+
+app.get(
+"/api/orders/store/:merchantId",
+async(req,res)=>{
+
+    try{
+
+        const orders =
+        await Order.find({
+
+            merchantId:
+            req.params.merchantId
+
+        })
+        .sort({
+            createdAt:-1
+        });
+
+        res.json({
+
+            success:true,
+
+            data:orders
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+
+// 騎手查詢自己的訂單
+
+app.get(
+"/api/orders/rider/:riderId",
+async(req,res)=>{
+
+    try{
+
+        const orders =
+        await Order.find({
+
+            riderId:
+            req.params.riderId
+
+        })
+        .sort({
+            createdAt:-1
+        });
+
+        res.json({
+
+            success:true,
+
+            data:orders
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+/* =====================
    店家接單
 ===================== */
 
