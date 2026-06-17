@@ -4,6 +4,12 @@ const userSchema = new mongoose.Schema({
 
     role:{
         type:String,
+        enum:[
+            "customer",
+            "merchant",
+            "rider",
+            "admin"
+        ],
         required:true
     },
 
@@ -18,23 +24,86 @@ const userSchema = new mongoose.Schema({
         required:true
     },
 
-    name:String,
+    email:{
+        type:String,
+        default:""
+    },
 
-    phone:String,
+    name:{
+        type:String,
+        default:""
+    },
 
-    address:String,
+    phone:{
+        type:String,
+        default:""
+    },
 
-    storeName:String,
+    address:{
+        type:String,
+        default:""
+    },
 
-    taxId:String,
+    avatar:{
+        type:String,
+        default:""
+    },
 
-    licenseType:String,
+    status:{
+        type:String,
+        default:"active"
+    },
 
-    licenseNumber:String,
+    // ===== 店家專用 =====
 
-    businessProofImg:String,
+    storeName:{
+        type:String,
+        default:""
+    },
 
-    insuranceImg:String
+    taxId:{
+        type:String,
+        default:""
+    },
+
+    businessProofImg:{
+        type:String,
+        default:""
+    },
+
+    // ===== 騎手專用 =====
+
+    licenseType:{
+        type:String,
+        default:""
+    },
+
+    licenseNumber:{
+        type:String,
+        default:""
+    },
+
+    insuranceImg:{
+        type:String,
+        default:""
+    },
+
+    // ===== 統計 =====
+
+    totalOrders:{
+        type:Number,
+        default:0
+    },
+
+    totalSpent:{
+        type:Number,
+        default:0
+    },
+
+    totalIncome:{
+        type:Number,
+        default:0
+    }
 
 },{
     timestamps:true
