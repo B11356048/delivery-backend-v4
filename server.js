@@ -959,3 +959,49 @@ async(req,res)=>{
     }
 
 });
+
+/* =====================
+   查詢評論
+===================== */
+
+app.get(
+"/api/reviews/:foodId",
+async(req,res)=>{
+
+    try{
+
+        const reviews =
+        await Review.find({
+
+            foodId:
+            req.params.foodId
+
+        })
+        .sort({
+
+            createdAt:-1
+
+        });
+
+        res.json({
+
+            success:true,
+
+            data:reviews
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
