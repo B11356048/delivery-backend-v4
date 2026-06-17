@@ -840,6 +840,7 @@ async(req,res)=>{
 
 });
 
+
 /* =====================
    評論
 ===================== */
@@ -848,47 +849,113 @@ app.post(
 "/api/orders/:id/review",
 async(req,res)=>{
 
-    const {
-        stars
-    } = req.body;
+    try{
 
-    const order =
-    await Order.findById(
-        req.params.id
-    );
+        const {
 
-    for(const item of order.items){
+            userId,
+            userName,
+            stars,
+            comment
 
-        await Food.findByIdAndUpdate(
-            item.foodId,
-            {
-                $inc:{
-                    ratingSum:stars,
-                    ratingCount:1
-                }
-            }
+        } = req.body;
+
+        const order =
+        await Order.findById(
+            req.params.id
         );
 
+        if(!order){
+
+            return res.status(404).json({
+
+                success:false,
+
+                message:"找不到訂單"
+
+            });
+
+        }
+
+        if(order.reviewed){
+
+            return res.status(400).json({
+
+                success:false,
+
+                message:"此訂單已評論"
+
+            });
+
+        }
+
+        for(const item of order.items){
+
+            // 更新餐點星數
+
+            await Food.findByIdAndUpdate(
+
+                item.foodId,
+
+                {
+                    $inc:{
+
+                        ratingSum:stars,
+
+                        ratingCount:1
+
+                    }
+
+                }
+
+            );
+
+            // 新增評論
+
+            const review =
+            new Review({
+
+                foodId:item.foodId,
+
+                userId,
+
+                userName,
+
+                stars,
+
+                comment
+
+            });
+
+            await review.save();
+
+        }
+
+        order.reviewed = true;
+
+        order.status = "已完成";
+
+        await order.save();
+
+        res.json({
+
+            success:true,
+
+            message:"感謝您的評價"
+
+        });
+
     }
+    catch(err){
 
-    order.status="已完成";
+        res.status(500).json({
 
-    await order.save();
+            success:false,
 
-    res.json({
-        success:true,
-        message:"感謝評價"
-    });
+            message:err.message
 
-});
+        });
 
-const PORT =
-process.env.PORT || 10000;
-
-app.listen(PORT,()=>{
-
-    console.log(
-        `Server Running ${PORT}`
-    );
+    }
 
 });
