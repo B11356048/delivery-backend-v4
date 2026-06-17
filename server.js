@@ -139,6 +139,155 @@ app.post("/api/login", async(req,res)=>{
 });
 
 /* =====================
+   購物車
+===================== */
+
+// 建立或更新購物車
+
+app.post("/api/cart", async(req,res)=>{
+
+    try{
+
+        const {
+
+            userId,
+            items,
+            totalAmount
+
+        } = req.body;
+
+        let cart =
+        await Cart.findOne({
+            userId
+        });
+
+        if(cart){
+
+            cart.items =
+            items;
+
+            cart.totalAmount =
+            totalAmount;
+
+            await cart.save();
+
+        }
+        else{
+
+            cart =
+            new Cart({
+
+                userId,
+
+                items,
+
+                totalAmount
+
+            });
+
+            await cart.save();
+
+        }
+
+        res.json({
+
+            success:true,
+
+            data:cart
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+
+// 取得購物車
+
+app.get("/api/cart/:userId", async(req,res)=>{
+
+    try{
+
+        const cart =
+        await Cart.findOne({
+
+            userId:
+            req.params.userId
+
+        });
+
+        res.json({
+
+            success:true,
+
+            data:cart
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+
+// 清空購物車
+
+app.delete("/api/cart/:userId", async(req,res)=>{
+
+    try{
+
+        await Cart.findOneAndDelete({
+
+            userId:
+            req.params.userId
+
+        });
+
+        res.json({
+
+            success:true,
+
+            message:"購物車已清空"
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+/* =====================
    商品
 ===================== */
 
