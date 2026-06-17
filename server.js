@@ -727,6 +727,51 @@ async(req,res)=>{
 });
 
 /* =====================
+   待騎手接單
+===================== */
+
+app.get(
+"/api/orders/available",
+async(req,res)=>{
+
+    try{
+
+        const orders =
+        await Order.find({
+
+            status:"待騎手接單"
+
+        })
+        .sort({
+
+            createdAt:-1
+
+        });
+
+        res.json({
+
+            success:true,
+
+            data:orders
+
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+});
+
+/* =====================
    店家接單
 ===================== */
 
