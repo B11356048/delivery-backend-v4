@@ -1,16 +1,12 @@
 {
-  "name": "delivery-backend-v4",
+  "name": "delivery-admin-system",
   "version": "1.0.0",
-  "description": "Food Delivery Platform Backend",
+  "description": "外送平台後台管理系統",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.0",
-    "mongoose": "^8.18.0"
+    "express": "^4.19.2"
   }
 }
