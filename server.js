@@ -1155,3 +1155,17 @@ async(req,res)=>{
     }
 
 });
+/* =====================
+   啟動伺服器
+===================== */
+
+const PORT =
+process.env.PORT || 10000;
+
+app.listen(PORT,()=>{
+
+    console.log(
+        `Server Running ${PORT}`
+    );
+
+});
