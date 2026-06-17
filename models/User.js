@@ -1,116 +1,16 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema({
-
-    role:{
-        type:String,
-        enum:[
-            "customer",
-            "merchant",
-            "rider",
-            "admin"
-        ],
-        required:true
+const UserSchema = new mongoose.Schema({
+    role: { 
+        type: String, 
+        required: true,
+        enum: ['customer', 'merchant', 'driver', 'admin'] // 對應你 HTML 的四端身分
     },
-
-    username:{
-        type:String,
-        required:true,
-        unique:true
-    },
-
-    password:{
-        type:String,
-        required:true
-    },
-
-    email:{
-        type:String,
-        default:""
-    },
-
-    name:{
-        type:String,
-        default:""
-    },
-
-    phone:{
-        type:String,
-        default:""
-    },
-
-    address:{
-        type:String,
-        default:""
-    },
-
-    avatar:{
-        type:String,
-        default:""
-    },
-
-    status:{
-        type:String,
-        default:"active"
-    },
-
-    // ===== 店家專用 =====
-
-    storeName:{
-        type:String,
-        default:""
-    },
-
-    taxId:{
-        type:String,
-        default:""
-    },
-
-    businessProofImg:{
-        type:String,
-        default:""
-    },
-
-    // ===== 騎手專用 =====
-
-    licenseType:{
-        type:String,
-        default:""
-    },
-
-    licenseNumber:{
-        type:String,
-        default:""
-    },
-
-    insuranceImg:{
-        type:String,
-        default:""
-    },
-
-    // ===== 統計 =====
-
-    totalOrders:{
-        type:Number,
-        default:0
-    },
-
-    totalSpent:{
-        type:Number,
-        default:0
-    },
-
-    totalIncome:{
-        type:Number,
-        default:0
-    }
-
-},{
-    timestamps:true
+    email: { type: String, required: true },
+    name: { type: String, required: true },
+    phone: { type: String, required: true },
+    address: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
 });
 
-module.exports =
-mongoose.model(
-    "User",
-    userSchema
-);
+module.exports = mongoose.model('User', UserSchema);
