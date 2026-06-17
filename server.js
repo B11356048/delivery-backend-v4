@@ -3,14 +3,16 @@ const cors = require('cors');
 const path = require('path');
 const mongoose = require('mongoose');
 
-// 引入剛剛寫好的三個 Models
+// 引入寫好的三個 Models
 const User = require('./models/User');
 const Food = require('./models/Food');
 const Order = require('./models/Order');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || "你的_MONGODB_雲端連接字串";
+
+// 已填入你提供的 MongoDB 連線字串，並加上預設資料庫名稱 fastfood
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://123:www@cluster0.fr8fewc.mongodb.net/fastfood?retryWrites=true&w=majority&appName=Cluster0";
 
 app.use(cors());
 app.use(express.json());
@@ -34,7 +36,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// 2. 商家新增上架餐點
+// 2. 商家上架餐點
 app.post('/api/foods', async (req, res) => {
     try {
         const newFood = new Food(req.body);
@@ -48,8 +50,12 @@ app.post('/api/foods', async (req, res) => {
 
 // 獲取餐點列表
 app.get('/api/foods', async (req, res) => {
-    const allFoods = await Food.find();
-    res.json(allFoods);
+    try {
+        const allFoods = await Food.find();
+        res.json(allFoods);
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 });
 
 // 3. 消費者送出訂單
@@ -69,15 +75,19 @@ app.post('/api/orders', async (req, res) => {
 
 // 獲取訂單列表
 app.get('/api/orders', async (req, res) => {
-    const allOrders = await Order.find();
-    res.json(allOrders);
+    try {
+        const allOrders = await Order.find();
+        res.json(allOrders);
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 });
 
-// 4. 更新訂單狀態
-app.post('/api/orders/update-status', async (req, res) => {
+// 4. 更新訂單狀態（商家接單、騎手配送等）
+app.post('/api/orders/updateStatus', async (req, res) => {
     try {
         const { id, status } = req.body;
-        await Order.updateOne({ id: Number(id) }, { status });
+        await Order.findOneAndUpdate({ id: Number(id) }, { status: status });
         const allOrders = await Order.find();
         res.json({ success: true, data: allOrders });
     } catch (err) {
@@ -86,5 +96,5 @@ app.post('/api/orders/update-status', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`[速食達人] 伺服器成功架設在 Port: ${PORT}`);
+    console.log(`🚀 Server is running on port ${PORT}`);
 });
