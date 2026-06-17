@@ -862,7 +862,7 @@ async(req,res)=>{
         req.params.id,
 
         {
-            status:"店家製作中"
+            status:"待騎手接單"
         },
 
         {
