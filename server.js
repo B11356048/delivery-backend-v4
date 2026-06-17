@@ -7,6 +7,8 @@ require("dotenv").config();
 const User = require("./models/User");
 const Food = require("./models/Food");
 const Order = require("./models/Order");
+const Cart = require("./models/Cart");
+const Review = require("./models/Review");
 
 const app = express();
 
