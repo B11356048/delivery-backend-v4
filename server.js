@@ -181,6 +181,69 @@ app.post("/api/foods", async(req,res)=>{
 });
 
 /* =====================
+   修改個人資料
+===================== */
+
+app.put("/api/profile", async(req,res)=>{
+
+    try{
+
+        const {
+            userId,
+            name,
+            phone,
+            address,
+            email,
+            avatar
+        } = req.body;
+
+        const user =
+        await User.findByIdAndUpdate(
+
+            userId,
+
+            {
+                name,
+                phone,
+                address,
+                email,
+                avatar
+            },
+
+            {
+                new:true
+            }
+
+        );
+
+        if(!user){
+
+            return res.status(404).json({
+                success:false,
+                message:"找不到使用者"
+            });
+
+        }
+
+        res.json({
+            success:true,
+            data:user,
+            message:"個人資料更新成功"
+        });
+
+    }
+    catch(err){
+
+        res.status(500).json({
+            success:false,
+            message:err.message
+        });
+
+    }
+
+});
+
+/* =====================
    訂單
 ===================== */
 
